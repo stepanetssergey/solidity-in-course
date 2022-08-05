@@ -18,7 +18,7 @@ contract Voting {
     struct subject {
         string id;
         string name;
-        uint votes;
+        uint256 votes;
     }
 
     mapping(address => bool) public Admins;
@@ -40,16 +40,23 @@ contract Voting {
         _;
     }
 
-    function editAdministrator(address _address, bool _active) public onlyOwner {
+    function editAdministrator(address _address, bool _active)
+        public
+        onlyOwner
+    {
         Admins[_address] = _active;
     }
 
     function addVoter(address _address) public onlyAdmin {
+        // send tokens to voter in process of registration
         Voters[_address]._address = _address;
         Voters[_address].hasVoted = false;
     }
 
-    function addSubject(string memory _id, string memory _name) public onlyAdmin {
+    function addSubject(string memory _id, string memory _name)
+        public
+        onlyAdmin
+    {
         Subjects[_id].id = _id;
         Subjects[_id].name = _name;
         Subjects[_id].votes = 0;
@@ -57,6 +64,7 @@ contract Voting {
 
     function vote(string memory _id) public onlyVoter {
         require(Voters[msg.sender].hasVoted == false, "Already voted.");
+        // get tokens from voters and write balance
         Subjects[_id].votes += 1;
         Voters[msg.sender].hasVoted = true;
     }
