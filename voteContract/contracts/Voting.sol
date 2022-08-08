@@ -1,13 +1,15 @@
 pragma solidity ^0.8.4;
 
-// 1 registration of voters (id, address)
-// 2. subject (name, start_date, end_date, vote variants)
+import './IGLDT.sol';
 
 contract Voting {
     address public owner;
+    address public tokenAddress;
 
-    constructor() {
+    constructor(address _tokenAddress) {
         owner = msg.sender;
+        tokenAddress = _tokenAddress;
+        editAdministrator(owner, true);
     }
 
     struct voter {
@@ -17,8 +19,8 @@ contract Voting {
 
     struct subject {
         string id;
-        string name;
-        uint256 votes;
+        uint256 balance;
+        address account;
     }
 
     mapping(address => bool) public Admins;
@@ -48,24 +50,32 @@ contract Voting {
     }
 
     function addVoter(address _address) public onlyAdmin {
-        // send tokens to voter in process of registration
+        IGLDT _token = IGLDT(tokenAddress);
+        _token.transfer(_address, 1000000);
         Voters[_address]._address = _address;
         Voters[_address].hasVoted = false;
     }
 
-    function addSubject(string memory _id, string memory _name)
-        public
-        onlyAdmin
-    {
+    function addSubject(string memory _id, address _account) public onlyAdmin {
         Subjects[_id].id = _id;
-        Subjects[_id].name = _name;
-        Subjects[_id].votes = 0;
+        Subjects[_id].account = _account;
     }
 
     function vote(string memory _id) public onlyVoter {
         require(Voters[msg.sender].hasVoted == false, "Already voted.");
-        // get tokens from voters and write balance
-        Subjects[_id].votes += 1;
+        IGLDT _token = IGLDT(tokenAddress);
+        _token.transferFrom(msg.sender, Subjects[_id].account, 1000000);
         Voters[msg.sender].hasVoted = true;
+        Subjects[_id].balance = getBalance(Subjects[_id].account);
+    }
+
+    function getBalance(address _account) public view returns(uint) {
+        IGLDT _token = IGLDT(tokenAddress);
+        return _token.balanceOf(_account);
+    }
+
+    function getTokens(uint _value) public {
+        IGLDT _token = IGLDT(tokenAddress);
+        _token.transferFrom(msg.sender, address(this), _value);
     }
 }
