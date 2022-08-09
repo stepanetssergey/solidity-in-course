@@ -25,30 +25,21 @@ describe("Voting", function () {
     const ownerIsAdmin = await voting.Admins(owner.address);
     expect(ownerIsAdmin).to.equal(true);
   });
-  it("Add voter and check his balance", async function () {
+  it("Add voter and vote", async function () {
     const Voting = await ethers.getContractFactory("Voting");
     const Token = await ethers.getContractFactory("GLDT");
     const GLDT = await Token.deploy(1000000 * 10);
+    await GLDT.deployed();
     const voting = await Voting.deploy(GLDT.address);
     await voting.deployed();
-    const [owner] = await ethers.getSigners();
-    await voting.editAdministrator(owner.address, true);
+    const [owner, otherAddress] = await ethers.getSigners();
+    await GLDT.approve(voting.address, 10000000);
+    await voting.getTokens(10000000);
     await voting.addVoter(owner.address);
-    const voter = await voting.Voters(owner.address);
-    const voterBalance = await voting.getBalance(voter._address);
-    expect(voter._address).to.equal(owner.address);
-    expect(voterBalance).to.above(0);
-    console.log(voterBalance);
+    await voting.addSubject(0, otherAddress.address);
+    const subject = await voting.Subjects(0);
+    await voting.vote(0);
+    const subjectBalance = await voting.getBalance(subject.account);
+    expect(subjectBalance).to.equal(1000000);
   });
-
-  //   it("", async function () {
-  //     const Voting = await ethers.getContractFactory("Voting");
-  //     const voting = await Voting.deploy();
-  //     await voting.deployed();
-  //     const [owner] = await ethers.getSigners();
-  //     await voting.editAdministrator(owner.address, true);
-  //     await voting.addVoter(owner.address);
-  //     const voter = await voting.Voters(owner.address);
-  //     expect(voter._address).to.equal(owner.address);
-  //   });
 });
