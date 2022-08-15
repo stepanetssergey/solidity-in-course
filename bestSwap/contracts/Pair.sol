@@ -48,10 +48,11 @@ contract Pair {
     }
 
     function mint(address _to) internal returns (uint256 liquidity) {
-        IERC20 ERC20 = IERC20(token0);
+        IERC20 ERC20Token0 = IERC20(token0);
+        IERC20 ERC20Token1 = IERC20(token1);
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
-        uint256 balance0 = ERC20.balanceOf(address(this));
-        uint256 balance1 = ERC20.balanceOf(address(this));
+        uint256 balance0 = ERC20Token0.balanceOf(address(this));
+        uint256 balance1 = ERC20Token1.balanceOf(address(this));
         uint256 amount0 = balance0 - _reserve0;
         uint256 amount1 = balance1 - _reserve1;
 
@@ -67,11 +68,17 @@ contract Pair {
 
         require(liquidity > 0, "INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(_to, liquidity);
+        _update(balance0, balance1);
     }
 
     function _mint(address _to, uint256 _value) internal {
         totalSupply += _value;
         balance[_to] += _value;
+    }
+
+    function _update(uint _balance0, uint _balance1) private {
+        reserve0 = uint112(_balance0);
+        reserve1 = uint112(_balance1);
     }
 
     function transferFromToken(
