@@ -4,6 +4,15 @@ import "./Pair.sol";
 contract PairFactory {
     address public pair;
     mapping(address => mapping(address => address)) getPair;
+    address[] public allPairs;
+
+    function getPairAddress(address _token0, address _token1) public view returns(address) {
+        return getPair[_token0][_token1];
+    }
+
+    function getPairLength() public view returns(uint) {
+        return allPairs.length;
+    }
 
     function createPair(address tokenA, address tokenB)
         external
@@ -23,6 +32,7 @@ contract PairFactory {
         Pair(_pair).initialize(token0, token1);
         getPair[token0][token1] = _pair;
         getPair[token1][token0] = _pair;
+        allPairs.push(_pair);
         pair = _pair;
     }
 }

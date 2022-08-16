@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
 import "./interfaces/IERC20.sol";
+import "./libraries/tokenTransferHelper.sol";
 
-contract Pair {
+contract Pair is tokenTransferHelper {
     address public factory;
     address public token0;
     address public token1;
@@ -47,7 +49,26 @@ contract Pair {
         token1 = _token1;
     }
 
-    function mint(address _to) internal returns (uint256 liquidity) {
+
+    function swap(uint amount0Out, uint amount1Out, address to) external  {
+        (uint _reserve0, uint _reserve1) = getReserves(); // gas savings
+        uint balance0;
+        uint balance1;
+        { // scope for _token{0,1}, avoids stack too deep errors
+        address _token0 = token0;
+        address _token1 = token1;
+        if (amount0Out > 0) transferFromToken(_token0, address(this), to, amount0Out); // optimistically transfer tokens
+        if (amount1Out > 0) transferFromToken(_token1, address(this), to, amount1Out);
+        balance0 = IERC20(_token0).balanceOf(address(this));
+        balance1 = IERC20(_token1).balanceOf(address(this));
+        }
+        uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+        uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+        _update(balance0, balance1);
+        //emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+    }
+
+    function mint(address _to) public returns (uint256 liquidity) {
         IERC20 ERC20Token0 = IERC20(token0);
         IERC20 ERC20Token1 = IERC20(token1);
         (uint256 _reserve0, uint256 _reserve1) = getReserves();
@@ -64,6 +85,16 @@ contract Pair {
                 (amount0 * totalSupply) / reserve0,
                 (amount1 * totalSupply) / reserve1
             );
+
+            //amount0 - x
+            // 10 - 100
+            //reserve0 - totalSupply   = 10
+            // 100 - 1000
+
+            //amount1 - x
+            //20 - 40
+            //reserve1 - totalSupply 2
+            //500 - 1000
         }
 
         require(liquidity > 0, "INSUFFICIENT_LIQUIDITY_MINTED");
@@ -81,47 +112,7 @@ contract Pair {
         reserve1 = uint112(_balance1);
     }
 
-    function transferFromToken(
-        address _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal {
-        IERC20 ERC20 = IERC20(_token);
-        ERC20.transferFrom(_from, _to, _value);
-    }
-
-    function addLiquidity(
-        address _token0,
-        address _token1,
-        uint256 _amount0,
-        uint256 _amount1,
-        address _to
-    )
-        public
-        returns (
-            uint256 amount0,
-            uint256 amount1,
-            uint256 liquidity
-        )
-    {
-        transferFromToken(_token0, msg.sender, address(this), _amount0);
-        transferFromToken(_token1, msg.sender, address(this), _amount1);
-        liquidity = mint(_to);
-    }
-
-    function sqrt(uint256 y) internal pure returns (uint256 z) {
-        if (y > 3) {
-            z = y;
-            uint256 x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
-            }
-        } else if (y != 0) {
-            z = 1;
-        }
-    }
+   
 
     function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x < y ? x : y;
