@@ -39,29 +39,74 @@ describe("ERC20", function () {
 
     await token0.connect(account1).approve(router.address, value);
     await token1.connect(account1).approve(router.address, value);
-  });
 
-  it("Add liquidity and swap", async () => {
-    // approve tokens
-    
     const token0Value = value;
     const token1Value = value / 2;
     const addLiquidityTrx = await router.connect(account1).addLiquidity(token0.address, token1.address, token0Value, token1Value, account1.address);
     await addLiquidityTrx.wait();
-    const pairLength = await pairFactory.getPairLength();
-    expect(pairLength).to.equal(1);
-    const pairAddress = await pairFactory.getPairAddress(token0.address, token1.address);
-    const thisPair = await ethers.getContractAt(PairABI, pairAddress);
-    const liquidityOfAccount1 = await thisPair.balanceOf(account1.address);
-    const thisToken0 = await thisPair.token0();
+    pairAddress = await pairFactory.getPairAddress(token0.address, token1.address);
+    pair = await ethers.getContractAt(PairABI, pairAddress);
+  });
+
+  it("Check liquidity", async () => {
+    const liquidityOfAccount1 = await pair.balanceOf(account1.address);
+    const thisToken0 = await pair.token0();
     expect(thisToken0).to.equal(token0.address);
     expect(liquidityOfAccount1.toString()).to.equal("706106")
-    
-    // get amount out
-    const amountOut = await router.getAmountOut(100000, token0.address, token1.address);
-    console.log('Amount OUT:', amountOut);
-
   })
+
+  it("Swap tokens two ways", async () => {
+    await token0.approve(router.address, 100000);
+    await token0.mint(account1.address, 100000);
+
+    let [reserve0, reserve1] = await pair.getReserves();
+    const amountOut1 = await router._getAmountOut(100000, reserve0, reserve1);
+
+    const balance0 = await token0.balanceOf(account1.address);
+    const balance1 = await token1.balanceOf(account1.address);
+
+    console.log('------------ BEFORE -------------');
+    console.log('before0: ', balance0.toString());
+    console.log('before1: ', balance1.toString());
+
+    await router.connect(account1).swapExactTokensForTokens(100000, [token0.address, token1.address], account1.address);
+    [reserve0, reserve1] = await pair.getReserves();
+
+    const balanceAfter0 = await token0.balanceOf(account1.address);
+    const balanceAfter1 = await token1.balanceOf(account1.address);
+
+    console.log('------------ After -------------');
+    console.log('balanceAfter0: ', balanceAfter0.toString());
+    console.log('balanceAfter1: ', balanceAfter1.toString());
+
+    expect(balanceAfter1).to.equal(+balance1 + +amountOut1);
+
+    await router.connect(account1).swapExactTokensForTokens(500000, [token1.address, token0.address], account1.address);
+
+    const amountOut2 = await router._getAmountOut(500000, reserve0, reserve1);
+    const balanceBack0 = await token0.balanceOf(account1.address);
+    const balanceBack1 = await token1.balanceOf(account1.address);
+
+    console.log('------------ Back -------------');
+    console.log('balanceBack0: ', balanceBack0.toString());
+    console.log('balanceBack1: ', balanceBack1.toString());
+
+    expect(balanceBack0).to.equal(+balanceAfter0 + +amountOut2);
+  });
+
+  it("Remove liquidity", async function () {
+    const liquidityOfAccount1 = await pair.balanceOf(account1.address);
+    const balanceBefore0 = await token0.balanceOf(account1.address);
+    const balanceBefore1 = await token1.balanceOf(account1.address);
+    console.log(balanceBefore0, balanceBefore1);
+    console.log('liquidityOfAccount1', liquidityOfAccount1);
+    await pair.approve(account1.address, liquidityOfAccount1)
+    const removeLiquidityTrx = await router.connect(account1).removeLiquidity(token0.address, token1.address, liquidityOfAccount1, account1.address);
+    await removeLiquidityTrx.wait();
+    const balanceAfter0 = await token0.balanceOf(account1.address);
+    const balanceAfter1 = await token1.balanceOf(account1.address);
+    console.log(balanceAfter0, balanceAfter1);
+  });
 
   // it("Check balance after mint of tokens", async function () {
   //   const balance0 = await token0.balanceOf(account1.address);

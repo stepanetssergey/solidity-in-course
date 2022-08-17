@@ -41,6 +41,11 @@ contract ERC20 {
         balance[_account] += _amount;
     }
 
+    function _burn(address _account, uint256 _amount) public {
+        totalSupply -= _amount;
+        balance[_account] -= _amount;
+    }
+
     function mint(address _account, uint256 _amount) public onlyMinter {
         _mint(_account, _amount);
     }

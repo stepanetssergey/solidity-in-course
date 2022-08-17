@@ -6,6 +6,8 @@ interface IERC20 {
 
     function mint(address _account, uint _amount) external;
 
+    function _burn(address _account, uint256 _amount) external;
+
     function balanceOf(address _account) external view returns(uint);
 
     function transfer(address _to, uint _amount) external;

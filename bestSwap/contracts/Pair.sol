@@ -2,9 +2,9 @@
 pragma solidity ^0.8.4;
 
 import "./interfaces/IERC20.sol";
-import "./libraries/tokenTransferHelper.sol";
+import "./libraries/Library.sol";
 
-contract Pair is tokenTransferHelper {
+contract Pair is Library {
     address public factory;
     address public token0;
     address public token1;
@@ -19,6 +19,7 @@ contract Pair is tokenTransferHelper {
 
     mapping(address => bool) Minters;
     mapping(address => uint256) balance;
+    mapping(address => mapping(address => uint256)) _allowed;
 
     modifier onlyOwner() {
         require(msg.sender == factory, "Only owner");
@@ -49,23 +50,24 @@ contract Pair is tokenTransferHelper {
         token1 = _token1;
     }
 
-
     function swap(uint amount0Out, uint amount1Out, address to) external  {
-        (uint _reserve0, uint _reserve1) = getReserves(); // gas savings
+        // (uint _reserve0, uint _reserve1) = getReserves(); // gas savings
         uint balance0;
         uint balance1;
         { // scope for _token{0,1}, avoids stack too deep errors
         address _token0 = token0;
         address _token1 = token1;
-        if (amount0Out > 0) transferFromToken(_token0, address(this), to, amount0Out); // optimistically transfer tokens
-        if (amount1Out > 0) transferFromToken(_token1, address(this), to, amount1Out);
+        // if (amount0Out > 0) transferFromToken(_token0, address(this), to, amount0Out); // optimistically transfer tokens
+        // if (amount1Out > 0) transferFromToken(_token1, address(this), to, amount1Out);
+        if (amount0Out > 0) IERC20(_token0).transfer(to, amount0Out); // optimistically transfer tokens
+        if (amount1Out > 0) IERC20(_token1).transfer(to, amount1Out);
         balance0 = IERC20(_token0).balanceOf(address(this));
         balance1 = IERC20(_token1).balanceOf(address(this));
         }
-        uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
-        uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+        // uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+        // uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         _update(balance0, balance1);
-        //emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        // emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
     function mint(address _to) public returns (uint256 liquidity) {
@@ -85,20 +87,34 @@ contract Pair is tokenTransferHelper {
                 (amount0 * totalSupply) / reserve0,
                 (amount1 * totalSupply) / reserve1
             );
-
-            //amount0 - x
-            // 10 - 100
-            //reserve0 - totalSupply   = 10
-            // 100 - 1000
-
-            //amount1 - x
-            //20 - 40
-            //reserve1 - totalSupply 2
-            //500 - 1000
         }
 
         require(liquidity > 0, "INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(_to, liquidity);
+        _update(balance0, balance1);
+    }
+
+    function burn(address _to) public returns (uint amount0, uint amount1) {
+        address _token0 = token0;
+        address _token1 = token1;   
+
+        uint balance0 = IERC20(_token0).balanceOf(address(this));
+        uint balance1 = IERC20(_token1).balanceOf(address(this));
+        uint liquidity = balance[address(this)];
+        uint _totalSupply = totalSupply;
+
+        amount0 = liquidity * balance0 / _totalSupply;
+        amount1 = liquidity * balance1 / _totalSupply; 
+
+        require(amount0 > 0 && amount1 > 0, 'INSUFFICIENT_LIQUIDITY_BURNED');
+
+        IERC20(address(this))._burn(address(this), liquidity);
+        IERC20(_token0).transfer(_to, amount0);
+        IERC20(_token1).transfer(_to, amount1);
+
+        balance0 = IERC20(_token0).balanceOf(address(this));
+        balance1 = IERC20(_token1).balanceOf(address(this));
+
         _update(balance0, balance1);
     }
 
@@ -112,13 +128,16 @@ contract Pair is tokenTransferHelper {
         reserve1 = uint112(_balance1);
     }
 
-   
-
-    function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = x < y ? x : y;
-    }
-
     function balanceOf(address _account) public view returns (uint256) {
         return balance[_account];
+    }
+
+    function approve(address _spender, uint256 _value)
+        public
+        returns (bool success)
+    {
+        require(balance[msg.sender] >= _value, "Not enough tokens");
+        _allowed[msg.sender][_spender] = _value;
+        return true;
     }
 }

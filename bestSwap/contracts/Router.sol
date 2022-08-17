@@ -2,12 +2,11 @@
 pragma solidity ^0.8.4;
 
 import "./interfaces/IPairFactory.sol";
-import "./libraries/tokenTransferHelper.sol";
 import "./interfaces/IPair.sol";
-import "./libraries/calculationAmounts.sol";
+import "./libraries/Library.sol";
 
 
-contract Router is tokenTransferHelper, calculationAmounts {
+contract Router is Library {
     
     address public factory;
     constructor(address _factory) {
@@ -41,20 +40,33 @@ contract Router is tokenTransferHelper, calculationAmounts {
         liquidity = IPair(_pairAddress).mint(_to);
     }
 
-    function swap(uint _amountIn, address _token0, address _token1, address _to) public {
-        address _pairAddress = IPairFactory(factory).getPairAddress(_token0, _token1);
-        (uint _reserve0, uint _reserve1) = IPair(_pairAddress).getReserves();
-        uint amountOut = getAmountOut(_amountIn, _reserve0, _reserve0);
-        IERC20(_token0).transferFrom(msg.sender, _pairAddress, _amountIn);
-        IPair(_pairAddress).swap(0, amountOut, _to);
+    function removeLiquidity(address _token0, address _token1, uint _liquidity, address _to) public {
+        IPairFactory _pairFactory = IPairFactory(factory);
+        address _pairAddress = _pairFactory.getPairAddress(_token0, _token1);
+        IPair(_pairAddress).transferFrom(msg.sender, _to, _liquidity);
+        IPair(_pairAddress).burn(_to);
     }
 
+    function swap(uint[] memory amounts, address[] memory path, address _to) public {
+        for (uint i; i < path.length - 1; i++) {
+            (address input, address output) = (path[i], path[i + 1]);
+            (address token0,) = sortTokens(input, output);
+            address _pairAddress = IPairFactory(factory).getPairAddress(path[i], path[i + 1]);
+            (uint _reserve0, uint _reserve1) = IPair(_pairAddress).getReserves();
+            uint amountOut = _getAmountOut(amounts[i], _reserve0, _reserve1);
+            (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOut) : (amountOut, uint(0));
+            IPair(_pairAddress).swap(amount0Out, amount1Out, _to);
+        }
+    }
 
-    function getAmountOut(uint _amountIn, address _token0, address _token1) public view returns(uint amountOut) {
-        address _pairAddress = IPairFactory(factory).getPairAddress(_token0, _token1);
-        (uint _reserve0, uint _reserve1) = IPair(_pairAddress).getReserves();
+    function swapExactTokensForTokens(uint amountIn, address[] calldata path, address to) public returns (uint[] memory amounts) {
+        amounts = getAmountsOut(factory, amountIn, path);
+        address _pairAddress = IPairFactory(factory).getPairAddress(path[0], path[1]);
+        IERC20(path[0]).transferFrom(msg.sender, _pairAddress, amounts[0]);
+        swap(amounts, path, to);
+    }
+
+    function _getAmountOut(uint256 _amountIn, uint256 _reserve0, uint256 _reserve1) public pure returns (uint256 amountOut) {
         amountOut = getAmountOut(_amountIn, _reserve0, _reserve1);
     }
-
-
 }
