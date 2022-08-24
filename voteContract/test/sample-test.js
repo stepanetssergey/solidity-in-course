@@ -3,12 +3,23 @@ const { ethers } = require("hardhat");
 const { it } = require("mocha");
 
 describe("Voting", function () {
-  it("Owner must be owner forom library in contract", async function () {
+  let voting;
+  let token;
+  let gldt;
+
+  beforeEach(async () => {
     const Voting = await ethers.getContractFactory("Voting");
     const Token = await ethers.getContractFactory("GLDT");
-    const GLDT = await Token.deploy(1000000 * 10);
-    const voting = await Voting.deploy(GLDT.address);
+    token = await Token.deploy(1000000 * 10);
+    token.deployed();
+    voting = await Voting.deploy(token.address);
     await voting.deployed();
+
+  })
+
+  
+  it("Owner must be owner forom library in contract", async function () {
+    
     const [owner] = await ethers.getSigners();
     const ownerFromContract = await voting.owner();
     expect(owner.address).to.equal(ownerFromContract);

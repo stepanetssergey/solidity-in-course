@@ -1,32 +1,24 @@
 pragma solidity ^0.8.4;
 
-import './IGLDT.sol';
+// 1 registration of voters (id, address) address => user
+// 2. subject (name, start_date, end_date, vote variants)
+
+// homework
+// add to contract registration of voters (struct, addVoter, makeActive so on)
+// check in test (editAdministrator)
+// check addVoter()
+// npx hardhat test - pass
 
 contract Voting {
+
     address public owner;
-    address public tokenAddress;
-
-    constructor(address _tokenAddress) {
-        owner = msg.sender;
-        tokenAddress = _tokenAddress;
-        editAdministrator(owner, true);
+    constructor() {
+       owner = msg.sender;
     }
 
-    struct voter {
-        address _address;
-        bool hasVoted;
-    }
+    mapping(address => bool) public Admins; // function Admins(address _address) returns(address) {return Admins[_address];}
 
-    struct subject {
-        string id;
-        uint256 balance;
-        address account;
-    }
-
-    mapping(address => bool) public Admins;
-    mapping(address => voter) public Voters;
-    mapping(string => subject) public Subjects;
-
+    // [(address as index -> bool),(address -> bool)]
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
         _;
@@ -37,45 +29,7 @@ contract Voting {
         _;
     }
 
-    modifier onlyVoter() {
-        require(Voters[msg.sender]._address == msg.sender, "Only voter");
-        _;
-    }
-
-    function editAdministrator(address _address, bool _active)
-        public
-        onlyOwner
-    {
+    function editAdministrator(address _address, bool _active) public onlyOwner {
         Admins[_address] = _active;
-    }
-
-    function addVoter(address _address) public onlyAdmin {
-        IGLDT _token = IGLDT(tokenAddress);
-        _token.transfer(_address, 1000000);
-        Voters[_address]._address = _address;
-        Voters[_address].hasVoted = false;
-    }
-
-    function addSubject(string memory _id, address _account) public onlyAdmin {
-        Subjects[_id].id = _id;
-        Subjects[_id].account = _account;
-    }
-
-    function vote(string memory _id) public onlyVoter {
-        require(Voters[msg.sender].hasVoted == false, "Already voted.");
-        IGLDT _token = IGLDT(tokenAddress);
-        _token.transferFrom(msg.sender, Subjects[_id].account, 1000000);
-        Voters[msg.sender].hasVoted = true;
-        Subjects[_id].balance = getBalance(Subjects[_id].account);
-    }
-
-    function getBalance(address _account) public view returns(uint) {
-        IGLDT _token = IGLDT(tokenAddress);
-        return _token.balanceOf(_account);
-    }
-
-    function getTokens(uint _value) public {
-        IGLDT _token = IGLDT(tokenAddress);
-        _token.transferFrom(msg.sender, address(this), _value);
     }
 }
