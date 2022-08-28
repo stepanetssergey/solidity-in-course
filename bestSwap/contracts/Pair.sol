@@ -2,6 +2,7 @@
 pragma solidity ^0.8.4;
 
 import "./interfaces/IERC20.sol";
+import "./ERC20.sol";
 import "./libraries/Library.sol";
 
 contract Pair is Library {
@@ -139,5 +140,23 @@ contract Pair is Library {
         require(balance[msg.sender] >= _value, "Not enough tokens");
         _allowed[msg.sender][_spender] = _value;
         return true;
+    }
+
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    ) public {
+        require(balance[_from] >= _value, "Not enough tokens");
+        require(_value <= _allowed[_from][msg.sender], "Not allowed");
+        require(_to != address(0));
+        balance[_from] -= _value;
+        balance[_to] += _value;
+    }
+
+    
+    function _burn(address _account, uint256 _amount) public {
+        totalSupply -= _amount;
+        balance[_account] -= _amount;
     }
 }

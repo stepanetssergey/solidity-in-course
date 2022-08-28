@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
 
+import "hardhat/console.sol";
+
 import "./interfaces/IPairFactory.sol";
 import "./interfaces/IPair.sol";
 import "./libraries/Library.sol";
-
+import "./interfaces/IWETH.sol";
 
 contract Router is Library {
-    
     address public factory;
-    constructor(address _factory) {
-         factory = _factory;
+    address public WETH;
+
+    constructor(address _factory, address _WETH) {
+        factory = _factory;
+        WETH = _WETH;
     }
 
 
@@ -40,10 +44,28 @@ contract Router is Library {
         liquidity = IPair(_pairAddress).mint(_to);
     }
 
+    function addLiquidityETH(
+        address token,
+        uint _amountToken,
+        uint _amountETH,
+        address to
+    ) public payable returns (uint liquidity) {
+        IPairFactory _pairFactory = IPairFactory(factory);
+        if(_pairFactory.getPairAddress(token, WETH) == address(0)) {
+            _pairFactory.createPair(token, WETH);
+        }
+        transferFromToken(token, msg.sender, address(_pairFactory), _amountToken);
+        IWETH(WETH).deposit{value: _amountETH}();
+        assert(IWETH(WETH).transfer(address(_pairFactory), _amountETH));
+        liquidity = IPair(address(_pairFactory)).mint(to);
+        // refund dust eth, if any
+        if (msg.value > _amountETH) safeTransferETH(msg.sender, msg.value - _amountETH);
+    }
+
     function removeLiquidity(address _token0, address _token1, uint _liquidity, address _to) public {
         IPairFactory _pairFactory = IPairFactory(factory);
         address _pairAddress = _pairFactory.getPairAddress(_token0, _token1);
-        IPair(_pairAddress).transferFrom(msg.sender, _to, _liquidity);
+        IPair(_pairAddress).transferFrom(msg.sender, _pairAddress, _liquidity);
         IPair(_pairAddress).burn(_to);
     }
 

@@ -7,12 +7,15 @@ const PairABI = require("../artifacts/contracts/Pair.sol/Pair.json").abi;
 describe("ERC20", function () {
   let token0;
   let token1;
+  let weth;
   let owner, account1;
   let pairFactory;
   let router;
   let pairAddress;
   const value = 1000000;
   let pair;
+  let ETHPairAddress;
+  let ETHPair;
 
   beforeEach(async () => {
     [owner, account1] = await ethers.getSigners();
@@ -28,9 +31,14 @@ describe("ERC20", function () {
     pairFactory = await pairFactoryContract.deploy();
     await pairFactory.deployed();
 
+    const WETHContract = await ethers.getContractFactory("WETH");
+    weth = await WETHContract.deploy();
+    await weth.deployed();
+
+    await weth.connect(account1).deposit({ value: 1000000000 });
 
     const Router = await ethers.getContractFactory("Router");
-    router = await Router.deploy(pairFactory.address);
+    router = await Router.deploy(pairFactory.address, weth.address);
     router.deployed();
     await token0.addMinter(owner.address, true);
     await token0.mint(account1.address, value);
@@ -46,6 +54,9 @@ describe("ERC20", function () {
     await addLiquidityTrx.wait();
     pairAddress = await pairFactory.getPairAddress(token0.address, token1.address);
     pair = await ethers.getContractAt(PairABI, pairAddress);
+
+    ETHPairAddress = await pairFactory.getPairAddress(token0.address, weth.address);
+    ETHPair = await ethers.getContractAt(PairABI, pairAddress);
   });
 
   it("Check liquidity", async () => {
@@ -100,7 +111,7 @@ describe("ERC20", function () {
     const balanceBefore1 = await token1.balanceOf(account1.address);
     console.log(balanceBefore0, balanceBefore1);
     console.log('liquidityOfAccount1', liquidityOfAccount1);
-    await pair.approve(account1.address, liquidityOfAccount1)
+    await pair.connect(account1).approve(router.address, liquidityOfAccount1)
     const removeLiquidityTrx = await router.connect(account1).removeLiquidity(token0.address, token1.address, liquidityOfAccount1, account1.address);
     await removeLiquidityTrx.wait();
     const balanceAfter0 = await token0.balanceOf(account1.address);
@@ -108,31 +119,16 @@ describe("ERC20", function () {
     console.log(balanceAfter0, balanceAfter1);
   });
 
-  // it("Check balance after mint of tokens", async function () {
-  //   const balance0 = await token0.balanceOf(account1.address);
-  //   const balance1 = await token1.balanceOf(account1.address);
-  //   expect(balance0).to.equal(value);
-  //   expect(balance1).to.equal(value);
-  // });
-
-  // it("Check allowances", async function () {
-  //   const allowance0 = await token0.allowance(account1.address, pairAddress);
-  //   const allowance1 = await token0.allowance(account1.address, pairAddress);
-  //   expect(allowance0).to.equal(value);
-  //   expect(allowance1).to.equal(value);
-  // });
-
-  // it("Add liquidity and check balances", async function () {
-  //   const token0Value = value;
-  //   const token1Value = value / 2;
-  //   await pair.connect(account1).addLiquidity(token0.address, token1.address, token0Value, token1Value, account1.address);
-  //   const token0Balance = await token0.balanceOf(account1.address);
-  //   const token1Balance = await token1.balanceOf(account1.address);
-  //   const liquidityBalance = await pair.balanceOf(account1.address);
-  //   const reserves = await pair.getReserves();
-  //   expect(token0Balance).to.equal(value - token0Value);
-  //   expect(token1Balance).to.equal(value - token1Value);
-  //   console.log(liquidityBalance);
-  //   console.log(reserves);
-  // });
+  it('Add Liquidity ETH', async () => {
+    await token0.mint(account1.address, value);
+    await weth.connect(account1).approve(router.address, value);
+    const balance = await weth.balanceOf(account1.address);
+    const allowance = await weth.allowance(account1.address, router.address);
+    console.log(balance);
+    console.log(allowance);
+    const tokenValue = value;
+    const ETHValue = value;
+    const addLiquidityTrx = await router.connect(account1).addLiquidityETH(token0.address, tokenValue, ETHValue, account1.address);
+    await addLiquidityTrx.wait();
+  });
 });

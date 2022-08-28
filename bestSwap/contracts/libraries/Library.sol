@@ -58,4 +58,9 @@ contract Library {
         IERC20 ERC20 = IERC20(_token);
         ERC20.transferFrom(_from, _to, _value);
     }
+
+    function safeTransferETH(address to, uint256 value) internal {
+        (bool success, ) = to.call{value: value}(new bytes(0));
+        require(success, 'TransferHelper::safeTransferETH: ETH transfer failed');
+    }
 }
