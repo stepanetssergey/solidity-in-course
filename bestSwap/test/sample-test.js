@@ -129,7 +129,7 @@ describe("ERC20", function () {
     // console.log(allowance);
     const tokenValue = value;
     const ETHValue = value;
-    const addLiquidityTrx = await router.connect(account1).addLiquidityETH(token0.address, '1000000', '1000000000000000000', account1.address);
+    const addLiquidityTrx = await router.connect(account1).addLiquidityETH(token0.address, 1000000, ethers.utils.parseEther("1.0"), account1.address);
     await addLiquidityTrx.wait();
   });
 });
