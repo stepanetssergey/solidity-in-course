@@ -17,7 +17,6 @@ contract Router is Library {
         WETH = _WETH;
     }
 
-
     function addLiquidity(
         address _token0,
         address _token1,
@@ -33,7 +32,7 @@ contract Router is Library {
         )
     {
         IPairFactory _pairFactory = IPairFactory(factory);
-        if(_pairFactory.getPairAddress(_token0, _token1) == address(0)) {
+        if (_pairFactory.getPairAddress(_token0, _token1) == address(0)) {
             _pairFactory.createPair(_token0, _token1);
         }
 
@@ -46,55 +45,82 @@ contract Router is Library {
 
     function addLiquidityETH(
         address token,
-        uint _amountToken,
-        uint _amountETH,
+        uint256 _amountToken,
+        uint256 _amountETH,
         address to
-    ) public payable returns (uint liquidity) {
+    ) public payable returns (uint256 liquidity) {
         IPairFactory _pairFactory = IPairFactory(factory);
 
         address _pairAddress = _pairFactory.getPairAddress(token, WETH);
 
-        if(_pairAddress == address(0)) {
+        if (_pairAddress == address(0)) {
             _pairFactory.createPair(token, WETH);
             _pairAddress = _pairFactory.getPairAddress(token, WETH);
         }
 
         transferFromToken(token, msg.sender, _pairAddress, _amountToken);
-        console.log('--------------', _amountETH ,'--------------');
-        IWETH(WETH).deposit{ value: _amountETH }();
-        assert(IWETH(WETH).transfer(_pairAddress, _amountETH));
+        console.log("--------------", _amountETH, "--------------");
+        IWETH(WETH).deposit{value: msg.value}();
+        assert(IWETH(WETH).transfer(_pairAddress, msg.value));
         liquidity = IPair(_pairAddress).mint(to);
         // refund dust eth, if any
-        if (msg.value > _amountETH) safeTransferETH(msg.sender, msg.value - _amountETH);
+        // if (msg.value > _amountETH)
+        //     safeTransferETH(msg.sender, msg.value - _amountETH);
     }
 
-    function removeLiquidity(address _token0, address _token1, uint _liquidity, address _to) public {
+    function removeLiquidity(
+        address _token0,
+        address _token1,
+        uint256 _liquidity,
+        address _to
+    ) public {
         IPairFactory _pairFactory = IPairFactory(factory);
         address _pairAddress = _pairFactory.getPairAddress(_token0, _token1);
         IPair(_pairAddress).transferFrom(msg.sender, _pairAddress, _liquidity);
         IPair(_pairAddress).burn(_to);
     }
 
-    function swap(uint[] memory amounts, address[] memory path, address _to) public {
-        for (uint i; i < path.length - 1; i++) {
+    function swap(
+        uint256[] memory amounts,
+        address[] memory path,
+        address _to
+    ) public {
+        for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
-            (address token0,) = sortTokens(input, output);
-            address _pairAddress = IPairFactory(factory).getPairAddress(path[i], path[i + 1]);
-            (uint _reserve0, uint _reserve1) = IPair(_pairAddress).getReserves();
-            uint amountOut = _getAmountOut(amounts[i], _reserve0, _reserve1);
-            (uint amount0Out, uint amount1Out) = input == token0 ? (uint(0), amountOut) : (amountOut, uint(0));
+            (address token0, ) = sortTokens(input, output);
+            address _pairAddress = IPairFactory(factory).getPairAddress(
+                path[i],
+                path[i + 1]
+            );
+            (uint256 _reserve0, uint256 _reserve1) = IPair(_pairAddress)
+                .getReserves();
+            uint256 amountOut = _getAmountOut(amounts[i], _reserve0, _reserve1);
+            (uint256 amount0Out, uint256 amount1Out) = input == token0
+                ? (uint256(0), amountOut)
+                : (amountOut, uint256(0));
             IPair(_pairAddress).swap(amount0Out, amount1Out, _to);
         }
     }
 
-    function swapExactTokensForTokens(uint amountIn, address[] calldata path, address to) public returns (uint[] memory amounts) {
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        address[] calldata path,
+        address to
+    ) public returns (uint256[] memory amounts) {
         amounts = getAmountsOut(factory, amountIn, path);
-        address _pairAddress = IPairFactory(factory).getPairAddress(path[0], path[1]);
+        address _pairAddress = IPairFactory(factory).getPairAddress(
+            path[0],
+            path[1]
+        );
         IERC20(path[0]).transferFrom(msg.sender, _pairAddress, amounts[0]);
         swap(amounts, path, to);
     }
 
-    function _getAmountOut(uint256 _amountIn, uint256 _reserve0, uint256 _reserve1) public pure returns (uint256 amountOut) {
+    function _getAmountOut(
+        uint256 _amountIn,
+        uint256 _reserve0,
+        uint256 _reserve1
+    ) public pure returns (uint256 amountOut) {
         amountOut = getAmountOut(_amountIn, _reserve0, _reserve1);
     }
 }
