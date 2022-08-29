@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.4;
+import "hardhat/console.sol";
 
 contract WETH {
     string public name     = "Wrapped Ether";
@@ -9,11 +10,13 @@ contract WETH {
     mapping (address => uint)                       public  balanceOf;
     mapping (address => mapping (address => uint))  public  _allowed;
 
-    receive() external payable {
-        balanceOf[msg.sender] += msg.value;
+    fallback() external payable {
+        deposit();
+        console.log('--------------RECEIVE--------------');
     }
 
     function deposit() public payable {
+        console.log('--------------DEPOSIT--------------');
         balanceOf[msg.sender] += msg.value;
     }
 

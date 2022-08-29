@@ -51,13 +51,19 @@ contract Router is Library {
         address to
     ) public payable returns (uint liquidity) {
         IPairFactory _pairFactory = IPairFactory(factory);
-        if(_pairFactory.getPairAddress(token, WETH) == address(0)) {
+
+        address _pairAddress = _pairFactory.getPairAddress(token, WETH);
+
+        if(_pairAddress == address(0)) {
             _pairFactory.createPair(token, WETH);
+            _pairAddress = _pairFactory.getPairAddress(token, WETH);
         }
-        transferFromToken(token, msg.sender, address(_pairFactory), _amountToken);
-        IWETH(WETH).deposit{value: _amountETH}();
-        assert(IWETH(WETH).transfer(address(_pairFactory), _amountETH));
-        liquidity = IPair(address(_pairFactory)).mint(to);
+
+        transferFromToken(token, msg.sender, _pairAddress, _amountToken);
+        console.log('--------------', _amountETH ,'--------------');
+        IWETH(WETH).deposit{ value: _amountETH }();
+        assert(IWETH(WETH).transfer(_pairAddress, _amountETH));
+        liquidity = IPair(_pairAddress).mint(to);
         // refund dust eth, if any
         if (msg.value > _amountETH) safeTransferETH(msg.sender, msg.value - _amountETH);
     }
