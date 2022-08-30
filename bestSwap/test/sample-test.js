@@ -35,8 +35,8 @@ describe("ERC20", function () {
     weth = await WETHContract.deploy();
     await weth.deployed();
 
-    console.log('------------ DEPOSIT FROM JS -----------------');
-    await weth.connect(account1).deposit({ value: '2000000000000000000' });
+    // console.log('------------ DEPOSIT FROM JS -----------------');
+    // await weth.connect(account1).deposit({ value: '2000000000000000000' });
 
     const Router = await ethers.getContractFactory("Router");
     router = await Router.deploy(pairFactory.address, weth.address);
@@ -129,7 +129,7 @@ describe("ERC20", function () {
     // console.log(allowance);
     const tokenValue = value;
     const ETHValue = value;
-    const addLiquidityTrx = await router.connect(account1).addLiquidityETH(token0.address, 1000000, ethers.utils.parseEther("1.0"), account1.address);
+    const addLiquidityTrx = await router.connect(account1).addLiquidityETH(token0.address, value, ethers.utils.parseEther("1.0"), account1.address);
     await addLiquidityTrx.wait();
   });
 });
