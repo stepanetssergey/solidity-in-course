@@ -59,7 +59,6 @@ contract Router is Library {
         }
 
         transferFromToken(token, msg.sender, _pairAddress, _amountToken);
-        console.log("--------------", _amountETH, "--------------");
         IWETH(WETH).deposit{value: msg.value}();
         assert(IWETH(WETH).transfer(_pairAddress, msg.value));
         liquidity = IPair(_pairAddress).mint(to);

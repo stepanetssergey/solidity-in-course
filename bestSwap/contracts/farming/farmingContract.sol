@@ -1,6 +1,7 @@
 pragma solidity ^0.8.4;
 
 import "../interfaces/IERC20.sol";
+import "hardhat/console.sol";
 
 
 contract farmingContract {
@@ -64,11 +65,10 @@ contract farmingContract {
 
     // View function to see pending CAKEs on frontend.
     function pendingAmount(address _user) external view returns (uint256) {
-        
         uint256 lpSupply = IERC20(Pool.LPAddress).balanceOf(address(this));
         uint tokensPerLPToken;
-        if (block.number > Pool.lastBlock && lpSupply != 0) {
 
+        if (block.number > Pool.lastBlock && lpSupply != 0) {
             uint blockAmount = block.number - Pool.lastBlock;
             uint tokensAmount = blockAmount * Pool.tokensForOneBlock;
             tokensPerLPToken = Pool.tokensPerOneLPToken + (tokensAmount * 1e12) / lpSupply;
@@ -85,7 +85,4 @@ contract farmingContract {
         // save current rewardDebt in user
         // for test await time.advanceBlockTo('170');
     }
-
-
-
 }
