@@ -23,7 +23,7 @@ describe("FarmingContract", function () {
         [owner, account1, account2] = await ethers.getSigners();
 
         const lpTokenContract = await ethers.getContractFactory("ERC20");
-        lpToken = await lpTokenContract.deploy('LP Token', 'LPT', 1000);
+        lpToken = await lpTokenContract.deploy('LP Token', 'LPT', 5000000);
         await lpToken.deployed();
 
         const farmingContract = await ethers.getContractFactory("farmingContract");
@@ -31,8 +31,8 @@ describe("FarmingContract", function () {
         await farmingPool.deployed();
 
         await lpToken.addMinter(owner.address, true);
-        await lpToken.mint(account1.address, 1000);
-        await lpToken.mint(account2.address, 1000);
+        await lpToken.mint(account1.address, 2000000);
+        await lpToken.mint(account2.address, 2000000);
     });
 
     async function deposit (account, amount) {
@@ -49,12 +49,14 @@ describe("FarmingContract", function () {
 
         const blockAmount = currentBlock - lastBlock;
         const tokensAmount = blockAmount * pool.tokensForOneBlock;
-        const tokensPerLPToken = pool.tokensPerOneLPToken + (tokensAmount * 1e12) / lpSupply;
-        return user.amount * tokensPerLPToken / 1e12 - user.rewardDebt;
+        const tokensPerLPToken = pool.tokensPerOneLPToken + (tokensAmount * 10**12) / lpSupply;
+
+        return (user.amount * tokensPerLPToken) / 10**12 - user.rewardDebt;
     }
 
     async function getPendingAmount (account) {
-        return farmingPool.pendingAmount(account.address);
+        const result = await farmingPool.pendingAmount(account.address);
+        return result.toString();
     }
 
     async function getPool () {
@@ -71,8 +73,8 @@ describe("FarmingContract", function () {
     }
 
     async function getCurrentBlock () {
-        const block = await ethers.provider.getBlock("latest");
-        return block.number;
+        const block = await ethers.provider.getBlockNumber();
+        return block;
     }
 
     async function compareRewardDebt (account) {
@@ -89,11 +91,11 @@ describe("FarmingContract", function () {
         const pendingAmount = await getPendingAmount(account);
         console.log(calculatedAmount);
         console.log(pendingAmount);
-        expect(+calculatedAmount).to.equal(pendingAmount);
+        expect(calculatedAmount.toString()).to.equal(pendingAmount);
     }
 
     it('Deposit LP Tokens', async () => {
-        await deposit(account1, 10);
+        await deposit(account1, 1000000);
 
         await compareRewardDebt(account1);
         await nextBlock();
@@ -101,12 +103,13 @@ describe("FarmingContract", function () {
 
         await comparePendingAmount(account1);
 
-        await deposit(account2, 50);
+        await deposit(account2, 2000000);
 
         await nextBlock();
         await nextBlock();
 
         await compareRewardDebt(account2);
+        // await comparePendingAmount(account1);
         await comparePendingAmount(account2);
     });
 });

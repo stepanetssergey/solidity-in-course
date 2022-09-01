@@ -73,7 +73,7 @@ contract farmingContract {
             uint tokensAmount = blockAmount * Pool.tokensForOneBlock;
             tokensPerLPToken = Pool.tokensPerOneLPToken + (tokensAmount * 1e12) / lpSupply;
         }
-        return Users[_user].amount * tokensPerLPToken / 1e12 - Users[_user].rewardDebt;
+        return (Users[_user].amount * tokensPerLPToken) / 1e12 - Users[_user].rewardDebt;
     }
 
 
