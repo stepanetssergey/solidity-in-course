@@ -4,15 +4,15 @@ const { expect } = require("chai");
 const { ethers, network } = require("hardhat");
 const { it } = require("mocha");
 
-async function nextBlock () {
+async function nextBlock() {
     return await network.provider.send("hardhat_mine", ["0x100"]);
 }
 
-function countRewardDebt (user, pool) {
-    return user.amount * pool.tokensPerOneLPToken / 1e12;
+function countRewardDebt(user, pool) {
+    return (user.amount * pool.tokensPerOneLPToken) / 1e12;
 }
 
-describe("FarmingContract", function () {
+describe("FarmingContract", function() {
     let farmingPool;
     let owner;
     let account1;
@@ -23,7 +23,7 @@ describe("FarmingContract", function () {
         [owner, account1, account2] = await ethers.getSigners();
 
         const lpTokenContract = await ethers.getContractFactory("ERC20");
-        lpToken = await lpTokenContract.deploy('LP Token', 'LPT', 5000000);
+        lpToken = await lpTokenContract.deploy("LP Token", "LPT", 5000000);
         await lpToken.deployed();
 
         const farmingContract = await ethers.getContractFactory("farmingContract");
@@ -35,7 +35,7 @@ describe("FarmingContract", function () {
         await lpToken.mint(account2.address, 2000000);
     });
 
-    async function deposit (account, amount) {
+    async function deposit(account, amount) {
         await lpToken.connect(account).approve(farmingPool.address, amount);
         await farmingPool.connect(account).deposit(amount);
     }
@@ -48,36 +48,47 @@ describe("FarmingContract", function () {
         const user = await getUser(account);
 
         const blockAmount = currentBlock - lastBlock;
+        console.log("Block amount:", blockAmount);
         const tokensAmount = blockAmount * pool.tokensForOneBlock;
-        const tokensPerLPToken = pool.tokensPerOneLPToken + (tokensAmount * 10**12) / lpSupply;
+        console.log("Token amount:", tokensAmount);
+        console.log(pool);
+        console.log("tokensPerOneLP", pool.tokensPerOneLPToken);
+        const tokensPerLPToken =
+            pool.tokensPerOneLPToken.toNumber() +
+            (tokensAmount * 10 ** 12) / lpSupply;
+        console.log("Tokens Per Lp After", tokensPerLPToken);
+        console.log(user);
 
-        return (user.amount * tokensPerLPToken) / 10**12 - user.rewardDebt;
+        return (
+            parseInt((user.amount.toNumber() * tokensPerLPToken) / 10 ** 12) -
+            user.rewardDebt.toNumber()
+        );
     }
 
-    async function getPendingAmount (account) {
+    async function getPendingAmount(account) {
         const result = await farmingPool.pendingAmount(account.address);
         return result.toString();
     }
 
-    async function getPool () {
+    async function getPool() {
         return await farmingPool.Pool();
     }
 
-    async function getUser (account) {
+    async function getUser(account) {
         return farmingPool.Users(account.address);
     }
 
-    async function getPoolLastBlock () {
+    async function getPoolLastBlock() {
         const pool = await getPool();
         return pool.lastBlock;
     }
 
-    async function getCurrentBlock () {
+    async function getCurrentBlock() {
         const block = await ethers.provider.getBlockNumber();
         return block;
     }
 
-    async function compareRewardDebt (account) {
+    async function compareRewardDebt(account) {
         const user = await getUser(account);
         const pool = await getPool();
         const rewardDebt = user.rewardDebt;
@@ -86,7 +97,7 @@ describe("FarmingContract", function () {
         expect(+rewardDebt).to.equal(rewardDebtCalc);
     }
 
-    async function comparePendingAmount (account) {
+    async function comparePendingAmount(account) {
         const calculatedAmount = await calcPendingAmount(account);
         const pendingAmount = await getPendingAmount(account);
         console.log(calculatedAmount);
@@ -94,7 +105,7 @@ describe("FarmingContract", function () {
         expect(calculatedAmount.toString()).to.equal(pendingAmount);
     }
 
-    it('Deposit LP Tokens', async () => {
+    it("Deposit LP Tokens", async () => {
         await deposit(account1, 1000000);
 
         await compareRewardDebt(account1);
@@ -109,7 +120,6 @@ describe("FarmingContract", function () {
         await nextBlock();
 
         await compareRewardDebt(account2);
-        // await comparePendingAmount(account1);
         await comparePendingAmount(account2);
     });
 });
