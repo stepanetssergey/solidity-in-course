@@ -12,12 +12,13 @@ function countRewardDebt(user, pool) {
     return (user.amount * pool.tokensPerOneLPToken) / 1e12;
 }
 
-describe("FarmingContract", function() {
+describe("FarmingContract", function () {
     let farmingPool;
     let owner;
     let account1;
     let account2;
     let lpToken;
+    let rewardToken;
 
     beforeEach(async () => {
         [owner, account1, account2] = await ethers.getSigners();
@@ -26,13 +27,18 @@ describe("FarmingContract", function() {
         lpToken = await lpTokenContract.deploy("LP Token", "LPT", 5000000);
         await lpToken.deployed();
 
+        const rewardTokenContract = await ethers.getContractFactory("ERC20");
+        rewardToken = await rewardTokenContract.deploy("Reward Token", "RDT", 5000000);
+        await rewardToken.deployed();
+
         const farmingContract = await ethers.getContractFactory("farmingContract");
-        farmingPool = await farmingContract.deploy(1, lpToken.address);
+        farmingPool = await farmingContract.deploy(1, lpToken.address, rewardToken.address);
         await farmingPool.deployed();
 
         await lpToken.addMinter(owner.address, true);
         await lpToken.mint(account1.address, 2000000);
         await lpToken.mint(account2.address, 2000000);
+        await rewardToken.addMinter(farmingPool.address, true);
     });
 
     async function deposit(account, amount) {
@@ -44,28 +50,18 @@ describe("FarmingContract", function() {
         await farmingPool.connect(account).withdraw(amount);
     }
 
-    async function calcPendingAmount(account) {
+    async function calcPendingAmount(account, increase = 0) {
         const lpSupply = await lpToken.balanceOf(farmingPool.address);
         const currentBlock = await getCurrentBlock();
         const lastBlock = await getPoolLastBlock();
         const pool = await getPool();
         const user = await getUser(account);
 
-        const blockAmount = currentBlock - lastBlock;
-        console.log("Block amount:", blockAmount);
+        const blockAmount = currentBlock + increase - lastBlock;
         const tokensAmount = blockAmount * pool.tokensForOneBlock;
-        console.log("Token amount:", tokensAmount);
-        console.log(pool);
-        console.log("tokensPerOneLP", pool.tokensPerOneLPToken);
-        const tokensPerLPToken =
-            pool.tokensPerOneLPToken.toNumber() +
-            (tokensAmount * 10 ** 12) / lpSupply;
-        console.log("Tokens Per Lp After", tokensPerLPToken);
-        console.log(user);
-
+        const tokensPerLPToken = pool.tokensPerOneLPToken.toNumber() + (tokensAmount * 10 ** 12) / lpSupply;
         return (
-            parseInt((user.amount.toNumber() * tokensPerLPToken) / 10 ** 12) -
-            user.rewardDebt.toNumber()
+            parseInt((user.amount.toNumber() * tokensPerLPToken) / 10 ** 12) - user.rewardDebt.toNumber()
         );
     }
 
@@ -97,35 +93,61 @@ describe("FarmingContract", function() {
         const pool = await getPool();
         const rewardDebt = user.rewardDebt;
         const rewardDebtCalc = countRewardDebt(user, pool);
-
+        
         expect(+rewardDebt).to.equal(rewardDebtCalc);
     }
 
     async function comparePendingAmount(account) {
         const calculatedAmount = await calcPendingAmount(account);
         const pendingAmount = await getPendingAmount(account);
-        console.log(calculatedAmount);
-        console.log(pendingAmount);
+
         expect(calculatedAmount.toString()).to.equal(pendingAmount);
     }
 
+    async function testWidthdraw (account, amount) {
+        const calculatedRewardAmount = await calcPendingAmount(account, 1);
+        const userLPBalanceBefore = await lpToken.balanceOf(account.address);
+
+        await withdraw(account, amount);
+
+        const userLPBalanceAfter = await lpToken.balanceOf(account.address);
+
+        const rewardAmount = await rewardToken.balanceOf(account.address);
+
+        expect(calculatedRewardAmount.toString()).to.equal(rewardAmount);
+        expect(userLPBalanceAfter).to.equal(+userLPBalanceBefore + amount);
+    }
+
     it("Deposit LP Tokens", async () => {
+  
         await deposit(account1, 1000000);
 
         await compareRewardDebt(account1);
         await nextBlock();
         await nextBlock();
 
-        // await comparePendingAmount(account1);
+        await comparePendingAmount(account1);
 
-        // await deposit(account2, 2000000);
+        await deposit(account2, 2000000);
 
-        // await nextBlock();
-        // await nextBlock();
+        await nextBlock();
+        await nextBlock();
 
-        // await compareRewardDebt(account2);
-        // await comparePendingAmount(account2);
+        await compareRewardDebt(account2);
+        await comparePendingAmount(account2);
+    });
 
-        await withdraw(account1, 500000);
+    it("Deposit and withdraw", async () => {
+        await deposit(account1, 1000000);
+
+        await nextBlock();
+        await nextBlock();
+
+        await deposit(account2, 2000000);
+
+        await nextBlock();
+
+        await testWidthdraw(account1, 100000);
+        await testWidthdraw(account2, 2000000);
     });
 });

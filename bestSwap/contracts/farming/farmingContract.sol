@@ -47,7 +47,6 @@ contract farmingContract {
 
     // Update reward variables of the given pool to be up-to-date.
     function updatePool() public {
-        
         if (block.number <= Pool.lastBlock) {
             return;
         }
@@ -57,7 +56,7 @@ contract farmingContract {
             Pool.lastBlock = block.number;
             return;
         }
-        
+
         uint blockAmount = block.number - Pool.lastBlock;
 
         Pool.tokensPerOneLPToken = Pool.tokensPerOneLPToken + ((blockAmount * Pool.tokensForOneBlock) * 1e12) / lpSupply;
@@ -81,10 +80,12 @@ contract farmingContract {
     function withdraw(uint _amount) public {
         updatePool();
         uint256 pending = Users[msg.sender].amount * Pool.tokensPerOneLPToken / 1e12 - Users[msg.sender].rewardDebt;
+
         if(pending > 0) {
             IERC20(Pool.rewardAddress).mint(msg.sender, pending);
         }
-        IERC20(Pool.LPAddress).transfer(msg.sender, Users[msg.sender].amount);
+
+        IERC20(Pool.LPAddress).transfer(msg.sender, _amount);
         Users[msg.sender].amount -= _amount;
         Users[msg.sender].rewardDebt = Users[msg.sender].amount * Pool.tokensPerOneLPToken / 1e12;
     }

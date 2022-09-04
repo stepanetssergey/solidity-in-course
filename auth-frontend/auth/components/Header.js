@@ -4,12 +4,11 @@ import { InjectedConnector } from "@web3-react/injected-connector";
 import axios from "axios";
 
 export const injected = new InjectedConnector({
-    supportedChainIds: [1, 1337, 137],
+    supportedChainIds: [3, 1337, 137],
 });
 
 const Header = () => {
-    const context = useWeb3React();
-    const { library, account, active, activate, deactivate } = context;
+    const { library, account, active, activate, deactivate } = useWeb3React();
     const [isLogin, setIsLogin] = useState(false);
     const handleConnectWallet = () => {
         if (!active) {
