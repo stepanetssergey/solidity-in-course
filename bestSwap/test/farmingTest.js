@@ -40,6 +40,10 @@ describe("FarmingContract", function() {
         await farmingPool.connect(account).deposit(amount);
     }
 
+    async function withdraw(account, amount) {
+        await farmingPool.connect(account).withdraw(amount);
+    }
+
     async function calcPendingAmount(account) {
         const lpSupply = await lpToken.balanceOf(farmingPool.address);
         const currentBlock = await getCurrentBlock();
@@ -112,14 +116,16 @@ describe("FarmingContract", function() {
         await nextBlock();
         await nextBlock();
 
-        await comparePendingAmount(account1);
+        // await comparePendingAmount(account1);
 
-        await deposit(account2, 2000000);
+        // await deposit(account2, 2000000);
 
-        await nextBlock();
-        await nextBlock();
+        // await nextBlock();
+        // await nextBlock();
 
-        await compareRewardDebt(account2);
-        await comparePendingAmount(account2);
+        // await compareRewardDebt(account2);
+        // await comparePendingAmount(account2);
+
+        await withdraw(account1, 500000);
     });
 });

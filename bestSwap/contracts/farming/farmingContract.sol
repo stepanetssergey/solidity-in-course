@@ -11,6 +11,7 @@ contract farmingContract {
         uint tokensPerOneLPToken;
         uint tokensForOneBlock;
         address LPAddress;
+        address rewardAddress;
     }
 
     struct user {
@@ -22,19 +23,19 @@ contract farmingContract {
 
     mapping(address => user) public Users;
 
-    constructor(uint _tokensForOneBlock, address _LPAddress) {
+    constructor(uint _tokensForOneBlock, address _LPAddress, address _rewardAddress) {
         Pool.tokensForOneBlock = _tokensForOneBlock;
         Pool.LPAddress = _LPAddress;
+        Pool.rewardAddress = _rewardAddress;
     }
     
-
     function deposit(uint256 _amount) public {
         updatePool();
         if (Users[msg.sender].amount > 0) {
-            // uint256 pending = user.amount.mul(pool.accCakePerShare).div(1e12).sub(user.rewardDebt);
-            // if(pending > 0) {
-            //     safeCakeTransfer(msg.sender, pending);
-            // }
+            uint256 pending = Users[msg.sender].amount * Pool.tokensPerOneLPToken / 1e12 - Users[msg.sender].rewardDebt;
+            if(pending > 0) {
+                IERC20(Pool.rewardAddress).mint(msg.sender, pending);
+            }
         }
         if (_amount > 0) {
             IERC20(Pool.LPAddress).transferFrom(msg.sender, address(this), _amount);
@@ -78,11 +79,13 @@ contract farmingContract {
 
 
     function withdraw(uint _amount) public {
-        // updatePool()
-        // get pending (сколько пользователь заработал на момент виздарава)
-        // mint tokens for users
-        // send LP token _amount to user BACK
-        // save current rewardDebt in user
-        // for test await time.advanceBlockTo('170');
+        updatePool();
+        uint256 pending = Users[msg.sender].amount * Pool.tokensPerOneLPToken / 1e12 - Users[msg.sender].rewardDebt;
+        if(pending > 0) {
+            IERC20(Pool.rewardAddress).mint(msg.sender, pending);
+        }
+        IERC20(Pool.LPAddress).transfer(msg.sender, Users[msg.sender].amount);
+        Users[msg.sender].amount -= _amount;
+        Users[msg.sender].rewardDebt = Users[msg.sender].amount * Pool.tokensPerOneLPToken / 1e12;
     }
 }
