@@ -100,8 +100,9 @@ describe("FarmingContract", function () {
         const blockAmount = currentBlock + increase - lastBlock;
         const tokensAmount = blockAmount * pool.tokensForOneBlock;
         const tokensPerLPToken = pool.tokensPerOneLPToken.toNumber() + (tokensAmount * 10 ** 12) / lpSupply;
+
         return (
-            parseInt((user.amount.toNumber() * tokensPerLPToken) / 10 ** 12) - user.rewardDebt.toNumber()
+            parseInt(((user.amount.toNumber() * parseInt(tokensPerLPToken)) / 10 ** 12) - user.rewardDebt.toNumber())
         );
     }
 
@@ -169,13 +170,13 @@ describe("FarmingContract", function () {
 
         await comparePendingAmount(account1);
 
-        // await deposit(account2, value);
+        await deposit(account2, value);
 
-        // await nextBlock();
-        // await nextBlock();
+        await nextBlock();
+        await nextBlock();
 
-        // await compareRewardDebt(account2);
-        // await comparePendingAmount(account2);
+        await compareRewardDebt(account2);
+        await comparePendingAmount(account2);
     });
 
     // it("Deposit and withdraw", async () => {

@@ -71,7 +71,9 @@ contract farmingContract {
         if (block.number > Pool.lastBlock && lpSupply != 0) {
             uint blockAmount = block.number - Pool.lastBlock;
             uint tokensAmount = blockAmount * Pool.tokensForOneBlock;
+            console.log('------tokensAmount--------', tokensAmount ,'--------------');
             tokensPerLPToken = Pool.tokensPerOneLPToken + (tokensAmount * 1e12) / lpSupply;
+            console.log('------tokensPerLPToken--------', tokensPerLPToken ,'--------------');
         }
         return (Users[_user].amount * tokensPerLPToken) / 1e12 - Users[_user].rewardDebt;
     }
