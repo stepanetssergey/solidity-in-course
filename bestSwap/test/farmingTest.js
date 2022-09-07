@@ -3,6 +3,7 @@
 const { expect } = require("chai");
 const { ethers, network } = require("hardhat");
 const { it } = require("mocha");
+const PairABI = require("../artifacts/contracts/Pair.sol/Pair.json").abi;
 
 async function nextBlock() {
     return await network.provider.send("hardhat_mine", ["0x100"]);
@@ -19,13 +20,52 @@ describe("FarmingContract", function () {
     let account2;
     let lpToken;
     let rewardToken;
+    let token0;
+    let token1;
+    let pairFactory;
+    let router;
+    let pairAddress;
 
     beforeEach(async () => {
         [owner, account1, account2] = await ethers.getSigners();
 
-        const lpTokenContract = await ethers.getContractFactory("ERC20");
-        lpToken = await lpTokenContract.deploy("LP Token", "LPT", 5000000);
-        await lpToken.deployed();
+        const token0Contract = await ethers.getContractFactory("ERC20");
+        token0 = await token0Contract.deploy("token0", "TKN0", 1000000000);
+        await token0.deployed();
+
+        const token1Contract = await ethers.getContractFactory("ERC20");
+        token1 = await token1Contract.deploy("token1", "TKN1", 1000000000);
+        await token1.deployed();
+
+        const pairFactoryContract = await ethers.getContractFactory("PairFactory");
+        pairFactory = await pairFactoryContract.deploy();
+        await pairFactory.deployed();
+
+        const Router = await ethers.getContractFactory("Router");
+        router = await Router.deploy(pairFactory.address, token0.address);
+        router.deployed();
+
+        await token0.addMinter(owner.address, true);
+        await token0.mint(account1.address, 1000000000000);
+        await token1.addMinter(owner.address, true);
+        await token1.mint(account1.address, 1000000000000);
+
+        await token0.connect(account1).approve(router.address, 1000000000000);
+        await token1.connect(account1).approve(router.address, 1000000000000);
+
+        const addLiquidityTrx = await router.connect(account1).addLiquidity(token0.address, token1.address, 1000000, 1000000, account1.address);
+        await addLiquidityTrx.wait();
+
+        pairAddress = await pairFactory.getPairAddress(
+            token0.address,
+            token1.address
+        );
+
+        lpToken = await ethers.getContractAt(PairABI, pairAddress);
+
+        // const lpTokenContract = await ethers.getContractFactory("ERC20");
+        // lpToken = await lpTokenContract.deploy("LP Token", "LPT", 5000000);
+        // await lpToken.deployed();
 
         const rewardTokenContract = await ethers.getContractFactory("ERC20");
         rewardToken = await rewardTokenContract.deploy("Reward Token", "RDT", 5000000);
@@ -35,9 +75,9 @@ describe("FarmingContract", function () {
         farmingPool = await farmingContract.deploy(1, lpToken.address, rewardToken.address);
         await farmingPool.deployed();
 
-        await lpToken.addMinter(owner.address, true);
-        await lpToken.mint(account1.address, 2000000);
-        await lpToken.mint(account2.address, 2000000);
+        // await lpToken.addMinter(owner.address, true);
+        // await lpToken.mint(account1.address, 2000000);
+        // await lpToken.mint(account2.address, 2000000);
         await rewardToken.addMinter(farmingPool.address, true);
     });
 
@@ -119,8 +159,9 @@ describe("FarmingContract", function () {
     }
 
     it("Deposit LP Tokens", async () => {
-  
-        await deposit(account1, 1000000);
+        const value = await lpToken.balanceOf(account1.address);
+        console.log('value', value);
+        await deposit(account1, value);
 
         await compareRewardDebt(account1);
         await nextBlock();
@@ -128,26 +169,27 @@ describe("FarmingContract", function () {
 
         await comparePendingAmount(account1);
 
-        await deposit(account2, 2000000);
+        // await deposit(account2, value);
 
-        await nextBlock();
-        await nextBlock();
+        // await nextBlock();
+        // await nextBlock();
 
-        await compareRewardDebt(account2);
-        await comparePendingAmount(account2);
+        // await compareRewardDebt(account2);
+        // await comparePendingAmount(account2);
     });
 
-    it("Deposit and withdraw", async () => {
-        await deposit(account1, 1000000);
+    // it("Deposit and withdraw", async () => {
+    //     const value = await lpToken.balanceOf(account1.address);
+    //     await deposit(account1, value);
 
-        await nextBlock();
-        await nextBlock();
+    //     await nextBlock();
+    //     await nextBlock();
 
-        await deposit(account2, 2000000);
+    //     await deposit(account2, value);
 
-        await nextBlock();
+    //     await nextBlock();
 
-        await testWidthdraw(account1, 100000);
-        await testWidthdraw(account2, 2000000);
-    });
+    //     await testWidthdraw(account1, value);
+    //     await testWidthdraw(account2, value);
+    // });
 });
