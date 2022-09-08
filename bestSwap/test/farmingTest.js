@@ -170,27 +170,28 @@ describe("FarmingContract", function () {
 
         await comparePendingAmount(account1);
 
-        await deposit(account2, value);
+        // await deposit(account2, value);
 
-        await nextBlock();
-        await nextBlock();
+        // await nextBlock();
+        // await nextBlock();
 
-        await compareRewardDebt(account2);
-        await comparePendingAmount(account2);
+        // await compareRewardDebt(account2);
+        // await comparePendingAmount(account2);
     });
 
-    // it("Deposit and withdraw", async () => {
-    //     const value = await lpToken.balanceOf(account1.address);
-    //     await deposit(account1, value);
+    it("Deposit and withdraw", async () => {
+        const value = await lpToken.balanceOf(account1.address);
+        console.log(value);
+        await deposit(account1, value);
 
-    //     await nextBlock();
-    //     await nextBlock();
+        await nextBlock();
+        await nextBlock();
 
-    //     await deposit(account2, value);
+        // await deposit(account2, value);
 
-    //     await nextBlock();
+        await nextBlock();
 
-    //     await testWidthdraw(account1, value);
-    //     await testWidthdraw(account2, value);
-    // });
+        await testWidthdraw(account1, value);
+        // await testWidthdraw(account2, value);
+    });
 });

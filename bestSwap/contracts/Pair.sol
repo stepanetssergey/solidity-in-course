@@ -154,6 +154,11 @@ contract Pair is Library {
         balance[_to] += _value;
     }
 
+    function transfer(address _to, uint256 _amount) public {
+        require(_to != address(0));
+        balance[msg.sender] -= _amount;
+        balance[_to] += _amount;
+    }
     
     function _burn(address _account, uint256 _amount) public {
         totalSupply -= _amount;
