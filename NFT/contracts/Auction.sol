@@ -20,6 +20,9 @@ contract Auction {
 
     mapping(uint256 => auction) public getAuction;
 
+    event AddToken(uint _tokenId, uint _startBid, address _collection, uint _endTime);
+    event AddBid(address _currentWinner, uint _bidValue);
+
     function addToken(uint256 tokenId, uint256 startBid, address collection, uint256 endTime) public {
         require(endTime > block.timestamp, 'End time must be higher than start time');
         auctionId += 1;
@@ -30,6 +33,8 @@ contract Auction {
         getAuction[auctionId].startTime = block.timestamp;
         getAuction[auctionId].endTime = endTime;
         IERC721(collection).transferFrom(msg.sender, address(this), tokenId);
+
+        emit AddToken(tokenId, startBid, collection, endTime);
     }
 
     function addBid(uint256 auctionId) public payable {
@@ -49,6 +54,7 @@ contract Auction {
             getAuction[auctionId].winner = msg.sender;
             getAuction[auctionId].endBid = value;
         }
+        emit AddBid(getAuction[auctionId].winner, getAuction[auctionId].endBid);
     }
 
     function stopAuction(uint256 auctionId) public {
