@@ -11,6 +11,8 @@ contract VotingV2 {
   uint public votingId;
   uint private constant VOTE_VALUE = 10**6;
 
+  event VoterAdded(address account);
+
   struct voting {
     uint startTime;
     uint endTime;
@@ -90,6 +92,8 @@ contract VotingV2 {
     Voter[msg.sender].hasVoted = false;
     Voter[msg.sender].account = msg.sender;
     Voting[votingId].community.push(msg.sender);
+
+    emit VoterAdded(msg.sender);
   }
 
   function addSubject(address _address, string memory name, uint id) public onlyOwner {

@@ -4,23 +4,19 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-const hre = require("hardhat");
+const { ethers } = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
+  const votingTokenContract = await ethers.getContractFactory('VTT');
+  votingToken = await votingTokenContract.deploy();
+  await votingToken.deployed();
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+  const votingContract = await ethers.getContractFactory("VotingV2");
+  voting = await votingContract.deploy(votingToken.address);
+  await voting.deployed();
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
-
-  await lock.deployed();
-
-  console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
-  );
+  console.log('VTT:', votingToken.address);
+  console.log('Voting:', voting.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
