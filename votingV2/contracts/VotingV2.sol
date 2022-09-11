@@ -6,36 +6,33 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract VotingV2 is ERC20 {
   address public owner;
-  uint private lastVoterId;
-  uint private lastSubjectId;
+  uint private subjectId;
 
   constructor() ERC20('Voting token', 'VTT') {
     owner = msg.sender;
   }
 
   struct voter {
-    address _address;
-    uint tokenBalance;
-    uint id;
+    address account;
+    bool hasVoted;
   }
 
   struct subject {
     address _address;
-    uint tokenBalance;
-    uint id;
+    bool active;
   }
 
-  mapping(uint => voter) public Voter;
+  mapping(address => voter) public Voter;
   mapping(uint => subject) public Subject;
   mapping(uint => subject) public Choice;
 
-  modifier voterExists(address _address) {
-    require(Voter[lastVoterId + 1]._address == address(0), 'Voter already exists');
+  modifier voterExists() {
+    require(Voter[msg.sender].account == address(0), 'Voter already exists');
     _;
   }
 
-  modifier subjectExists(address _address) {
-    require(Subject[lastSubjectId]._address == address(0), 'Subject already exists');
+  modifier subjectExists(uint id) {
+    require(Subject[id].active == false, 'Subject already exists');
     _;
   }
 
@@ -44,15 +41,15 @@ contract VotingV2 is ERC20 {
     _;
   }
 
-  function becomeVoter() public onlyOwner voterExists(_address) {
+  function becomeVoter() public voterExists {
     _mint(msg.sender, 10**6);
-    lastVoterId += 1;
-    Voter[lastVoterId].tokenBalance = 1;
-    Voter[lastVoterId]._address = _address;
+    Voter[msg.sender].hasVoted = false;
+    Voter[msg.sender].account = msg.sender;
   }
 
-  function addSubject(address _address) public onlyOwner subjectExists(_address) {
-    lastSubjectId += 1;
-    Subject[lastSubjectId]._address = _address;
+  function addSubject(address _address) public onlyOwner subjectExists(id) {
+    Subject[subjectId]._address = _address;
+    Subject[subjectId].active = true;
+    subjectId++;
   }
 }
