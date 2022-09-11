@@ -2,14 +2,22 @@
 pragma solidity ^0.8.9;
 
 import 'hardhat/console.sol';
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./interfaces/IVTT.sol";
 
-contract VotingV2 is ERC20 {
+contract VotingV2 {
   address public owner;
-  uint private subjectId;
+  address public votingToken;
+  uint public votePercentage;
+  uint public votingId;
+  uint private constant VOTE_VALUE = 10**6;
 
-  constructor() ERC20('Voting token', 'VTT') {
-    owner = msg.sender;
+  struct voting {
+    uint startTime;
+    uint endTime;
+    uint currentWinner;
+    uint acceptablePercentage;
+    uint[] subjects;
+    address[] community;
   }
 
   struct voter {
@@ -18,21 +26,28 @@ contract VotingV2 is ERC20 {
   }
 
   struct subject {
+    uint id;
     address _address;
-    bool active;
+    string name;
+    bool isWinner;
   }
 
   mapping(address => voter) public Voter;
   mapping(uint => subject) public Subject;
-  mapping(uint => subject) public Choice;
+  mapping(uint => voting) public Voting;
+
+  constructor(address _votingToken) {
+    owner = msg.sender;
+    votingToken = _votingToken;
+  }
 
   modifier voterExists() {
     require(Voter[msg.sender].account == address(0), 'Voter already exists');
     _;
   }
 
-  modifier subjectExists(uint id) {
-    require(Subject[id].active == false, 'Subject already exists');
+  modifier onlyVoter() {
+    require(Voter[msg.sender].account != address(0), 'Only voter');
     _;
   }
 
@@ -41,15 +56,89 @@ contract VotingV2 is ERC20 {
     _;
   }
 
-  function becomeVoter() public voterExists {
-    _mint(msg.sender, 10**6);
-    Voter[msg.sender].hasVoted = false;
-    Voter[msg.sender].account = msg.sender;
+  modifier isNotOver {
+    require(Voting[votingId].endTime >= block.timestamp, 'Voting is over');
+    _;
   }
 
-  function addSubject(address _address) public onlyOwner subjectExists(id) {
-    Subject[subjectId]._address = _address;
-    Subject[subjectId].active = true;
-    subjectId++;
+  modifier isStarted {
+    require(Voting[votingId].startTime > 0, 'Voting is not started');
+    _;
+  }
+
+  function getSubjects(uint id) public view returns(uint[] memory) {
+    return Voting[id].subjects;
+  }
+
+  function start(uint _acceptablePercentage, uint _endTime) public onlyOwner {
+    votingId += 1;
+    require(_endTime > block.timestamp, 'Voting is over');
+    require(Voting[votingId].startTime == 0, 'Already started');
+    Voting[votingId].acceptablePercentage = _acceptablePercentage;
+    Voting[votingId].endTime = _endTime;
+    Voting[votingId].startTime = block.timestamp;
+  }
+
+  function end() public onlyOwner isStarted isNotOver {
+    require(getVotersPercentage() >= Voting[votingId].acceptablePercentage, 'Not enough votes');
+    Voting[votingId].endTime = block.timestamp;
+    Subject[Voting[votingId].currentWinner].isWinner = true;
+  }
+
+  function becomeVoter() public voterExists {
+    IVTT(votingToken).mint(msg.sender, VOTE_VALUE);
+    Voter[msg.sender].hasVoted = false;
+    Voter[msg.sender].account = msg.sender;
+    Voting[votingId].community.push(msg.sender);
+  }
+
+  function addSubject(address _address, string memory name, uint id) public onlyOwner {
+    Subject[id]._address = _address;
+    Subject[id].name = name;
+  }
+
+  function vote(uint id) public onlyVoter isStarted isNotOver {
+    uint allowanceValue = IVTT(votingToken).allowance(msg.sender, address(this));
+    require(allowanceValue == VOTE_VALUE, 'Not allowed');
+    require(!Voter[msg.sender].hasVoted, 'Already voted');
+    IVTT(votingToken).transferFrom(msg.sender, Subject[id]._address, VOTE_VALUE);
+    Voter[msg.sender].hasVoted = true;
+
+    bool existingSubject;
+
+    for(uint i = 0; i < Voting[votingId].subjects.length; i++) {
+      if (Voting[votingId].subjects[i] == id) {
+        existingSubject = true;
+      }
+    }
+
+    if (!existingSubject) {
+      Voting[votingId].subjects.push(id);
+    }
+
+    setCurrentWinner();
+  }
+
+  function setCurrentWinner() private {
+    uint biggest;
+    for(uint i = 0; i < Voting[votingId].subjects.length; i++) {
+      uint subjectId = Voting[votingId].subjects[i];
+      uint subjectBalance = IVTT(votingToken).balanceOf(Subject[subjectId]._address);
+      if(subjectBalance > biggest) {
+        biggest = subjectBalance;
+        Voting[votingId].currentWinner = subjectId;
+      } 
+    }
+  }
+
+  function getVotersPercentage() private returns(uint currentPercentage) {
+    uint votersCount;
+    for(uint i = 0; i < Voting[votingId].community.length; i++) {
+      address voterAddress = Voting[votingId].community[i];
+      if (Voter[voterAddress].hasVoted) {
+        votersCount++;
+      }
+    }
+    currentPercentage = (votersCount / Voting[votingId].community.length) * 100;
   }
 }
