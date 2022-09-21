@@ -28,5 +28,5 @@
     "solidity-coverage": "^0.7.21",
     "graphql": "^16.2.0",
     "graphql-request": "^3.7.0"
-  }
+    }
 }
