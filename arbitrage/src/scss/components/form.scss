@@ -25,6 +25,23 @@
 .form {
 
   &--prices {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
     margin-top: 30px;
+  }
+
+  &--prices &__title {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  &--prices &__column {
+    width: 48%;
+  }
+
+  &--prices &__label--mt {
+    display: block;
+    margin-top: 20px;
   }
 }
